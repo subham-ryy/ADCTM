@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Autonomous Data Center Digital Twin + Joint RL - Technical Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+            @bottom-center {
+                content: counter(page);
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.55;
+            color: #1a1a1a;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 22pt;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 8px;
+            color: #1e3a8a;
+            margin-top: 24px;
+        }
+        h2 {
+            font-size: 15pt;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 6px;
+            color: #1e40af;
+            margin-top: 24px;
+            page-break-after: avoid;
+        }
+        h3 {
+            font-size: 12pt;
+            color: #1e293b;
+            margin-top: 18px;
+            page-break-after: avoid;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+            font-size: 9.5pt;
+            page-break-inside: avoid;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 7px 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        code {
+            font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+            background-color: #f1f5f9;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9.5pt;
+            color: #0f172a;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 9pt;
+            line-height: 1.45;
+            page-break-inside: avoid;
+        }
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        blockquote {
+            border-left: 4px solid #3b82f6;
+            margin: 14px 0;
+            padding: 8px 16px;
+            background-color: #eff6ff;
+            color: #1e3a8a;
+        }
+        hr {
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 24px 0;
+        }
+        @media print {
+            body {
+                max-width: 100%;
+                padding: 0;
+            }
+            h2 {
+                page-break-before: auto;
+            }
+            pre, table {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+<h1 id="technical-research-report-autonomous-data-center-digital-twin-joint-reinforcement-learning-controller">Technical &amp; Research Report: Autonomous Data Center Digital Twin + Joint Reinforcement Learning Controller</h1>
+<p><strong>Project Title:</strong> Autonomous Data Center Thermal + Workload Controller (ADCTM)<br />
+<strong>Track:</strong> Digital Twin &amp; Autonomous Infrastructure Control<br />
+<strong>Date:</strong> September 2026<br />
+<strong>Status:</strong> Test-Validated Research Prototype (Simulator-v2)<br />
+<strong>Repository:</strong> <code>e:\rl</code>  </p>
+<hr />
+<h2 id="1-title-and-short-abstract">1. Title and Short Abstract</h2>
+<h3 id="abstract">Abstract</h3>
+<p>Data centers worldwide consume an estimated 1–2% of global electricity, with mechanical cooling systems accounting for 30% to 40% of facility power. Traditional data center cooling is operated reactively using static rule-based controllers (such as Computer Room Air Handler / CRAH thermostats), completely decoupled from the software schedulers that allocate compute jobs. When mechanical failures or thermal anomalies occur, cooling-only control systems cannot overcome local physical cooling capacity loss. If a cooling unit fails or suffers reduced capacity, no cooling setpoint can prevent overheating unless computation is moved away from the affected zone.</p>
+<p>This report presents the design, implementation, and empirical evaluation of the <strong>Autonomous Data Center Thermal + Workload Controller (ADCTM)</strong>. We construct a 5-zone test-validated digital twin incorporating heterogeneous thermodynamic characteristics and electrical coefficients of performance (COP). We train a reinforcement learning policy using Proximal Policy Optimization (PPO) that jointly controls both cooling allocation and computational workload migration, guarded on every step by a deterministic safety shield.</p>
+<p>On held-out, unseen test seeds (<code>[401, 402, 403, 404, 405]</code>) under a canonical cooling failure scenario (a cooling unit dropping to 60% capacity mid-episode):
+- <strong>Joint RL</strong> achieved a Power Usage Effectiveness (<strong>PUE</strong>) of <strong>1.1931 ± 0.0003</strong>, <strong>100.00% SLA uptime</strong>, <strong>0 operational violations</strong>, <strong>0 emergency safety violations</strong>, and a peak temperature of <strong>30.09°C</strong> (well within the ASHRAE Class A2 35.0°C limit).
+- The <strong>Rule-Based Baseline</strong> achieved <strong>PUE 1.2234 ± 0.0002</strong>, but suffered catastrophic overheating in the impaired zone, reaching a maximum temperature of <strong>55.33°C</strong>, resulting in an <strong>SLA uptime of only 1.88%</strong> and <strong>215.0 emergency violations</strong>.
+- The <strong>Cooling-Only RL Baseline</strong> achieved <strong>PUE 1.2424 ± 0.0002</strong>, an <strong>SLA uptime of 14.44%</strong>, and peak temperature of <strong>54.98°C</strong>, proving that optimizing cooling without workload mobility cannot survive physical cooling failures.
+- Joint RL maintained a <strong>0.00% safety-shield override rate</strong>, demonstrating that the policy internalized safe operational boundaries without relying on the deterministic shield as an operational crutch.</p>
+<p><strong>Explicit Research Disclaimer:</strong><br />
+This project is a <strong>simulator-based research prototype</strong> operating on an ordinary differential equation (ODE) thermal digital twin with synthetic parameters. It is <strong>not</strong> a production data center controller, has not been tested on live production hardware, and does not model three-dimensional computational fluid dynamics (CFD).</p>
+<hr />
+<h2 id="2-problem-statement">2. Problem Statement</h2>
+<p>A modern data center consists of rows of server racks grouped into thermal zones. The facility faces a complex, coupled physical challenge:
+1. <strong>Heat Generation:</strong> Computing hardware (CPUs, GPUs, memory, power supplies) converts virtually 100% of electrical energy into thermal energy. Higher computational utilization directly increases heat output.
+2. <strong>Cooling Infrastructure:</strong> Air handlers, chillers, and fans remove heat from the server racks to maintain IT inlet temperatures within hardware reliability envelopes. This cooling equipment consumes significant electrical energy.
+3. <strong>Thermal Asymmetry:</strong> In real facilities, zones are not identical. Differences in server generations, rack density, duct geometry, distance from chilled-water loops, and airflow obstructions result in heterogeneous heat generation and cooling effectiveness.
+4. <strong>Mechanical Vulnerabilities:</strong> Chillers, variable-frequency fan drives, and valves can fail, jam, or degrade. In a cooling failure, a zone's maximum heat removal capacity drops abruptly.
+5. <strong>Workload Mobility:</strong> In virtualized or containerized environments (e.g., Kubernetes), computational jobs can be migrated between server racks. However, workload migration consumes network bandwidth and CPU overhead.</p>
+<h3 id="the-decoupling-problem">The Decoupling Problem</h3>
+<p>Historically, facility operations and IT workload scheduling operate as two disconnected silos:
+- <strong>The Workload Scheduler</strong> packs jobs onto servers based on CPU, RAM, and storage availability, blind to instantaneous rack inlet temperatures or chiller health.
+- <strong>The Cooling Controller</strong> observes rack or return air temperatures and turns on fans or chillers reactively after temperatures rise.</p>
+<p>When a cooling unit degrades, reactive cooling control hits a hard physical wall: if a cooling unit's capacity drops from 100% to 60%, commanding 100% cooling will still only deliver 60% heat removal. Because the workload scheduler continues pumping jobs into that zone, the zone overheats, triggering thermal throttling or emergency hardware trips.</p>
+<h3 id="the-joint-control-hypothesis">The Joint Control Hypothesis</h3>
+<p>If an autonomous agent jointly observes temperatures, cooling capacities, and workload utilization across all zones, it can simultaneously:
+1. <strong>Allocate cooling</strong> to exactly match heat removal requirements without wasteful overcooling.
+2. <strong>Migrate computational load</strong> away from thermally impaired or electrically inefficient zones and toward zones with dedicated, high-COP cooling infrastructure.</p>
+<p>By solving this as a <strong>joint action space</strong> problem, the system can maintain 100% SLA compliance and lower total facility energy consumption, even during severe mechanical cooling failures.</p>
+<hr />
+<h2 id="3-system-overview">3. System Overview</h2>
+<p>The project is structured into clean, decoupled layers following the separation-of-concerns architecture specified in <code>AGENTS.md</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="c">                    </span><span class="nb">+-----------------------------+</span>
+<span class="c">                    |      Operator / Judge       |</span>
+<span class="c">                    </span><span class="nb">+-----------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="c">                    </span><span class="nb">+-----------------------------+</span>
+<span class="c">                    |    Next</span><span class="nt">.</span><span class="c">js Web Interface    |</span>
+<span class="c">                    |   (Presentation Layer)      |</span>
+<span class="c">                    </span><span class="nb">+-----------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                      REST Commands / WebSockets</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">|                       FastAPI Backend API                       |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> GET /api/v1/health          </span><span class="nb">-</span><span class="c"> POST /api/v1/runs              |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> GET /api/v1/config          </span><span class="nb">-</span><span class="c"> POST /api/v1/runs/{id}/commands|</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> GET /api/v1/runs/current    </span><span class="nb">-</span><span class="c"> GET  /api/v1/benchmarks/{id}   |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> WS  /api/v1/stream (Server</span><span class="nb">-</span><span class="c">to</span><span class="nb">-</span><span class="c">Client Telemetry)              |</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">|                    API Orchestration Runtime                    |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> SessionManager &amp; SimulationSession                           |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> Step boundary enforcement                                    |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> In</span><span class="nb">-</span><span class="c">memory execution state machine                            |</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                   State Observables / Step Triggers</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">|                      Controller Subsystem                       |</span>
+<span class="c">|  </span><span class="k">[</span><span class="c">Rule</span><span class="nb">-</span><span class="c">Based Baseline</span><span class="k">]</span><span class="c">  </span><span class="k">[</span><span class="c">Cooling</span><span class="nb">-</span><span class="c">Only RL</span><span class="k">]</span><span class="c">   </span><span class="k">[</span><span class="c">Joint RL (PPO)</span><span class="k">]</span><span class="c">    |</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                            Proposed Action</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">|                    Deterministic Safety Shield                  |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> Pure function: apply_safety_shield(action</span><span class="nt">,</span><span class="c"> state</span><span class="nt">,</span><span class="c"> cfg)       |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> Zero</span><span class="nb">-</span><span class="c">noise 1</span><span class="nb">-</span><span class="c">step physical temperature projection            |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> Clamping</span><span class="nt">,</span><span class="c"> overheat protection</span><span class="nt">,</span><span class="c"> overcool floor</span><span class="nt">,</span><span class="c"> move check    |</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">                                   |</span>
+<span class="c">                            Corrected Action</span>
+<span class="c">                                   |</span>
+<span class="c">                                   v</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+<span class="c">|                 Digital Twin Simulation Engine                  |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> DataCenterEnv (Gymnasium environment)                        |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> ThermalModel (Heterogeneous ODE heat balance)                |</span>
+<span class="c">|  </span><span class="nb">-</span><span class="c"> PowerModel (COP</span><span class="nb">-</span><span class="c">based electrical conversion &amp; PUE)           |</span>
+<span class="nb">+-----------------------------------------------------------------+</span>
+</code></pre></div>
+
+<h3 id="architectural-principles">Architectural Principles</h3>
+<ol>
+<li><strong>Presentation Decoupling:</strong> The frontend (<code>apps/web</code>) is presentation-only. It owns no physics, calculates no rewards, and makes no control decisions.</li>
+<li><strong>Authoritative Backend Runtime:</strong> The FastAPI application (<code>apps/api</code>) owns run lifecycle orchestration, step timing, command dispatch, and WebSocket telemetry broadcasting.</li>
+<li><strong>Pure Physics Engine:</strong> All thermal equations, electrical power models, and numerical updates reside in <code>engine/physics/</code> and <code>engine/env.py</code>.</li>
+<li><strong>Isolated Policy Layer:</strong> Controllers reside in <code>engine/control/</code>. Checkpoints are loaded once into memory upon server startup; no live training occurs during API inference requests.</li>
+<li><strong>Deterministic Safety Guard:</strong> The safety shield in <code>engine/safety/safety_shield.py</code> is a pure function that intercepts proposed actions and mathematically projects them into a safe operating envelope before simulator execution.</li>
+<li><strong>No External Dependencies:</strong> The system runs completely self-contained without MongoDB, MQTT, external cloud APIs, or message brokers.</li>
+</ol>
+<hr />
+<h2 id="4-digital-twin-simulator">4. Digital Twin / Simulator</h2>
+<p>The digital twin models a medium data center hall divided into $N = 5$ thermal zones.</p>
+<h3 id="core-simulation-parameters">Core Simulation Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Symbol / Variable</th>
+<th style="text-align: center;">Value</th>
+<th>Physical Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Number of Zones</td>
+<td>$N$</td>
+<td style="text-align: center;">5</td>
+<td>Spatial zones (Zone-A through Zone-E)</td>
+</tr>
+<tr>
+<td>Simulation Timestep</td>
+<td>$\Delta t$</td>
+<td style="text-align: center;">300 s (5 min)</td>
+<td>Control interval per step</td>
+</tr>
+<tr>
+<td>Episode Length</td>
+<td>$T_{\text{max}}$</td>
+<td style="text-align: center;">288 steps</td>
+<td>Exactly 24 hours of operation</td>
+</tr>
+<tr>
+<td>Baseline Ambient Temp</td>
+<td>$T_{\text{amb}}$</td>
+<td style="text-align: center;">30.0°C</td>
+<td>Outdoor / envelope temperature</td>
+</tr>
+<tr>
+<td>Target Temp Band</td>
+<td>$[T_{\text{target, low}}, T_{\text{target, high}}]$</td>
+<td style="text-align: center;">$[18.0, 27.0]^\circ\text{C}$</td>
+<td>ASHRAE recommended envelope</td>
+</tr>
+<tr>
+<td>Operational Max Temp</td>
+<td>$T_{\text{op, max}}$</td>
+<td style="text-align: center;">35.0°C</td>
+<td>ASHRAE Class A2 allowable limit (SLA threshold)</td>
+</tr>
+<tr>
+<td>Emergency Max Temp</td>
+<td>$T_{\text{emerg, max}}$</td>
+<td style="text-align: center;">45.0°C</td>
+<td>Hard simulator emergency threshold</td>
+</tr>
+<tr>
+<td>Nominal IT Power per Zone</td>
+<td>$P_{\text{IT, base}}$</td>
+<td style="text-align: center;">10.0 kW</td>
+<td>Peak IT power per zone at 100% load</td>
+</tr>
+<tr>
+<td>Max Cooling Capacity</td>
+<td>$Q_{\text{max}, i}$</td>
+<td style="text-align: center;">5.0 kW</td>
+<td>Max thermal removal capacity per zone</td>
+</tr>
+<tr>
+<td>Overhead Fraction</td>
+<td>$f_{\text{overhead}}$</td>
+<td style="text-align: center;">0.05 (5%)</td>
+<td>Lighting, UPS, and distribution losses</td>
+</tr>
+<tr>
+<td>Gaussian Process Noise</td>
+<td>$\sigma_{\text{noise}}$</td>
+<td style="text-align: center;">0.10°C</td>
+<td>Zero-mean Gaussian environmental jitter</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="simulator-v1-vs-simulator-v2-the-structural-deficiency-and-resolution">Simulator-v1 vs. Simulator-v2: The Structural Deficiency and Resolution</h3>
+<h4 id="the-simulator-v1-flaw-placement-invariance">The Simulator-v1 Flaw: Placement Invariance</h4>
+<p>In the initial implementation (Phase 1 through Phase 4 initial training), the thermal model treated all five zones as identical linear compartments:
+- Global heat-gain coefficient: $a = 5.0$
+- Global cooling-effectiveness coefficient: $b = 6.0$
+- Global ambient-coupling coefficient: $g = 0.02$
+- Direct cooling power consumption: $P_{\text{cooling}} = C_i \times 5.0$ kW</p>
+<p>In steady state, the temperature in zone $i$ satisfies:
+$$0 = a W_i - b C_i + g(T_{\text{amb}} - T^*)$$</p>
+<p>Solving for the equilibrium cooling action $C_i$:
+$$C_i = \frac{a W_i + g(T_{\text{amb}} - T^*)}{b}$$</p>
+<p>Summing cooling demands across all $N$ zones:
+$$\sum_{i=1}^N C_i = \frac{a}{b} \sum_{i=1}^N W_i + \frac{N g}{b} (T_{\text{amb}} - T^*)$$</p>
+<p>Because total workload is conserved ($\sum_{i=1}^N W_i = W_{\text{total}} = \text{const}$), the total required cooling action $\sum C_i$ <strong>was mathematically invariant to how workload was distributed among zones</strong>.</p>
+<p>Under identical linear zones, moving 0.2 workload from Zone 3 to Zone 1 saved heat in Zone 3 but added the exact same heat to Zone 1, requiring identical total cooling. Consequently, Joint RL had <strong>no physical or electrical incentive to migrate workload</strong>, causing migration to degenerate into meaningless chatter. In the Phase 4 v1 benchmark, Joint RL lost to the Rule-Based baseline on PUE (Joint RL: 1.4664 vs. Rule-Based: 1.4520).</p>
+<h4 id="the-simulator-v2-correction-heterogeneous-thermodynamics-and-cop">The Simulator-v2 Correction: Heterogeneous Thermodynamics and COP</h4>
+<p>To make workload placement physically meaningful without adding computational fluid dynamics (CFD), Simulator-v2 introduced <strong>heterogeneous zone parameters</strong> frozen in <code>config/topology.json</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">+---------------------------------------------------------------------------------------------------+</span>
+<span class="c">|                                 SIMULATOR</span><span class="nb">-</span><span class="c">v2 ZONE TOPOLOGY                                         |</span>
+<span class="nb">+--------+---------------+-----------------+--------------------------+--------+--------------------+</span>
+<span class="c">| Zone   | Physical Role | Heat Gain (a_i) | Cooling Effectiveness(b_i)| COP_i  | Qualitative Status |</span>
+<span class="nb">+--------+---------------+-----------------+--------------------------+--------+--------------------+</span>
+<span class="c">| Zone</span><span class="nb">-</span><span class="c">A | Edge          | 5</span><span class="nt">.</span><span class="c">2 °C/unit     | 6</span><span class="nt">.</span><span class="c">0 °C/unit              | 3</span><span class="nt">.</span><span class="c">2    | Moderate           |</span>
+<span class="c">| Zone</span><span class="nb">-</span><span class="c">B | Core</span><span class="nb">-</span><span class="c">Efficient| 4</span><span class="nt">.</span><span class="c">5 °C/unit     | 8</span><span class="nt">.</span><span class="c">0 °C/unit              | 3</span><span class="nt">.</span><span class="c">8    | High</span><span class="nb">-</span><span class="c">Efficiency    |</span>
+<span class="c">| Zone</span><span class="nb">-</span><span class="c">C | Standard      | 5</span><span class="nt">.</span><span class="c">0 °C/unit     | 6</span><span class="nt">.</span><span class="c">0 °C/unit              | 3</span><span class="nt">.</span><span class="c">0    | Average Reference  |</span>
+<span class="c">| Zone</span><span class="nb">-</span><span class="c">D | Impaired      | 5</span><span class="nt">.</span><span class="c">8 °C/unit     | 4</span><span class="nt">.</span><span class="c">0 °C/unit              | 2</span><span class="nt">.</span><span class="c">0    | Aging / Impaired   |</span>
+<span class="c">| Zone</span><span class="nb">-</span><span class="c">E | Warm</span><span class="nb">-</span><span class="c">Aisle    | 5</span><span class="nt">.</span><span class="c">5 °C/unit     | 5</span><span class="nt">.</span><span class="c">5 °C/unit              | 2</span><span class="nt">.</span><span class="c">6    | Warm Air Recirc</span><span class="nt">.</span><span class="c">   |</span>
+<span class="nb">+--------+---------------+-----------------+--------------------------+--------+--------------------+</span>
+</code></pre></div>
+
+<h4 id="why-heterogeneity-enables-workload-migration-optimization">Why Heterogeneity Enables Workload Migration Optimization</h4>
+<p>In Simulator-v2, electrical cooling power is explicitly separated from thermal heat removal using the Coefficient of Performance ($\text{COP}<em>i$):
+$$P</em>{\text{elec}, i} = \frac{Q_{\text{thermal}, i}}{\text{COP}<em>i} = \frac{C_i \cdot Q</em>{\text{max}, i}}{\text{COP}_i}$$</p>
+<p>The marginal electrical cooling power required per unit workload in zone $i$ is:
+$$\frac{\partial P_{\text{elec}}}{\partial W_i} = \frac{a_i \cdot Q_{\text{max}, i}}{b_i \cdot \text{COP}_i}$$</p>
+<p>Calculating this marginal electrical cost for our zones ($Q_{\text{max}, i} = 5.0$ kW):
+- <strong>Zone-D (Impaired):</strong>
+  $$\frac{\partial P_{\text{elec}}}{\partial W_D} = \frac{5.8 \times 5.0}{4.0 \times 2.0} = \frac{29.0}{8.0} = \mathbf{3.625}\text{ kW electrical / unit workload}$$
+- <strong>Zone-B (Core-Efficient):</strong>
+  $$\frac{\partial P_{\text{elec}}}{\partial W_B} = \frac{4.5 \times 5.0}{8.0 \times 3.8} = \frac{22.5}{30.4} = \mathbf{0.740}\text{ kW electrical / unit workload}$$</p>
+<p>$$\text{Efficiency Ratio} = \frac{3.625}{0.740} = \mathbf{4.898\times}$$</p>
+<p>Moving computational workload from Zone-D to Zone-B yields three simultaneous physical benefits:
+1. <strong>Less heat generated:</strong> $a_B = 4.5 &lt; a_D = 5.8$ (Zone-B servers are newer and generate less heat per compute unit).
+2. <strong>More effective thermal removal:</strong> $b_B = 8.0 &gt; b_D = 4.0$ (Zone-B has unobstructed airflow and dedicated CRAC cooling).
+3. <strong>Higher electrical efficiency:</strong> $\text{COP}_B = 3.8 &gt; \text{COP}_D = 2.0$ (Zone-B chiller consumes far less electricity per kilowatt of heat extracted).</p>
+<p><strong>Explicit Statement on Parameters:</strong><br />
+All coefficients ($a_i, b_i, g_i, \text{COP}_i$) are <strong>synthetic engineering assumptions</strong> chosen to reflect realistic multi-generation data center characteristics. They were frozen in configuration prior to Phase 4 retraining and were never altered to force an artificial benchmark win.</p>
+<hr />
+<h2 id="5-physics-and-mathematical-model">5. Physics and Mathematical Model</h2>
+<p>This section documents the exact equations implemented in <code>engine/physics/thermal_model.py</code>.</p>
+<h3 id="51-thermal-state-update-equation">5.1 Thermal State Update Equation</h3>
+<p>The temperature of zone $i$ at discrete timestep $t+1$ is computed as:</p>
+<p>$$T_i(t+1) = T_i(t) + a_i W_i(t) - b_i C_i(t) + g_i (T_{\text{amb}}(t) - T_i(t)) + \sum_{j=1}^N A_{ji}(T_j(t) - T_i(t)) + \epsilon_i(t)$$</p>
+<p>Where:
+- $T_i(t) \in \mathbb{R}$: Temperature of zone $i$ at timestep $t$ in degrees Celsius (°C).
+- $W_i(t) \in [0.0, 1.0]$: Computational workload utilization of zone $i$ at timestep $t$ (dimensionless fraction).
+- $C_i(t) \in [0.0, \text{Cap}<em>i(t)]$: Applied cooling command for zone $i$ at timestep $t$ (dimensionless fraction).
+- $T</em>{\text{amb}}(t) \in \mathbb{R}$: Ambient outside/envelope temperature (°C).
+- $a_i &gt; 0$: Zone-specific heat gain coefficient (°C temperature rise per unit workload per timestep).
+- $b_i &gt; 0$: Zone-specific cooling effectiveness coefficient (°C temperature drop per unit cooling command per timestep).
+- $g_i &gt; 0$: Zone-specific ambient thermal coupling coefficient (dimensionless conductance).
+- $A_{ji} \ge 0$: Thermal adjacency coupling matrix representing heat leakage from zone $j$ to zone $i$. In Simulator-v2, $A$ is frozen as an all-zero matrix ($A_{ji} = 0$).
+- $\epsilon_i(t) \sim \mathcal{N}(0, \sigma_{\text{noise}}^2)$: Zero-mean Gaussian process noise ($\sigma = 0.10^\circ\text{C}$).</p>
+<p><strong>Location in Code:</strong> <code>ThermalModel.step_temperatures()</code> in <a href="file:///e:/rl/engine/physics/thermal_model.py"><code>engine/physics/thermal_model.py</code></a>.</p>
+<hr />
+<h3 id="52-power-and-energy-model">5.2 Power and Energy Model</h3>
+<p>Power is calculated instantaneously at each step, and energy is accumulated over time.</p>
+<h4 id="1-it-equipment-power">1. IT Equipment Power</h4>
+<p>$$P_{\text{IT}}(t) = \sum_{i=1}^N W_i(t) \cdot P_{\text{IT, base}}$$
+With $P_{\text{IT, base}} = 10.0$ kW per zone. At full capacity across all 5 zones, $P_{\text{IT}} = 50.0$ kW.</p>
+<h4 id="2-thermal-heat-removal">2. Thermal Heat Removal</h4>
+<p>$$Q_{\text{thermal}, i}(t) = C_i(t) \cdot Q_{\text{max}, i}$$
+With $Q_{\text{max}, i} = 5.0$ kW thermal capacity per zone.</p>
+<h4 id="3-electrical-cooling-power">3. Electrical Cooling Power</h4>
+<p>$$P_{\text{cooling}}(t) = \sum_{i=1}^N \frac{Q_{\text{thermal}, i}(t)}{\text{COP}<em>i} = \sum</em>{i=1}^N \frac{C_i(t) \cdot Q_{\text{max}, i}}{\text{COP}_i}$$
+Where $\text{COP}_i \in [2.0, 3.8]$ is the Coefficient of Performance. Lower COP means more electrical watts are drawn to remove one watt of thermal heat.</p>
+<h4 id="4-facility-overhead-power">4. Facility Overhead Power</h4>
+<p>$$P_{\text{overhead}}(t) = P_{\text{IT}}(t) \cdot f_{\text{overhead}}$$
+With fixed overhead fraction $f_{\text{overhead}} = 0.05$ (5%).</p>
+<h4 id="5-total-facility-power">5. Total Facility Power</h4>
+<p>$$P_{\text{facility}}(t) = P_{\text{IT}}(t) + P_{\text{cooling}}(t) + P_{\text{overhead}}(t)$$</p>
+<p><strong>Location in Code:</strong> <code>ThermalModel.compute_power()</code> in <a href="file:///e:/rl/engine/physics/thermal_model.py"><code>engine/physics/thermal_model.py</code></a>.</p>
+<hr />
+<h3 id="53-power-usage-effectiveness-pue">5.3 Power Usage Effectiveness (PUE)</h3>
+<p>Instantaneous Power Usage Effectiveness at step $t$ is:
+$$\text{PUE}(t) = \frac{P_{\text{facility}}(t)}{P_{\text{IT}}(t)} = 1 + \frac{P_{\text{cooling}}(t) + P_{\text{overhead}}(t)}{P_{\text{IT}}(t)}$$</p>
+<p>For the entire 24-hour episode (288 steps), PUE is computed from total integrated electrical energy:
+$$\text{PUE}<em>{\text{episode}} = \frac{E</em>{\text{facility}}}{E_{\text{IT}}} = \frac{\sum_{t=0}^{287} P_{\text{facility}}(t) \cdot \frac{\Delta t}{3600}}{\sum_{t=0}^{287} P_{\text{IT}}(t) \cdot \frac{\Delta t}{3600}}$$</p>
+<p>Where $\Delta t = 300$ seconds ($5/60 = 1/12$ hours).</p>
+<p><strong>Why Lower PUE is Better:</strong><br />
+A PUE of 1.0 represents the physical ideal where 100% of consumed facility energy goes into computation, with zero energy wasted on chillers, fans, pumps, or transformers. Standard enterprise data centers typically average PUE 1.5–1.8. Hyperscale facilities achieve 1.15–1.25. A lower PUE directly translates to lower operational cost and carbon emissions.</p>
+<hr />
+<h2 id="6-rl-environment">6. RL Environment</h2>
+<p>The reinforcement learning interface is implemented as a Gymnasium environment in <a href="file:///e:/rl/engine/env.py"><code>engine/env.py</code></a> and wrapped by controller-specific wrappers.</p>
+<h3 id="61-observation-space">6.1 Observation Space</h3>
+<p>The observation vector $s_t \in \mathbb{R}^{22}$ is continuous:</p>
+<table>
+<thead>
+<tr>
+<th>Indices</th>
+<th style="text-align: center;">Dimension</th>
+<th>Description</th>
+<th>Normalization / Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0..4</code></td>
+<td style="text-align: center;">5</td>
+<td>Zone Temperatures ($T_1, \dots, T_5$)</td>
+<td>Celsius (°C), nominal ~18–50°C</td>
+</tr>
+<tr>
+<td><code>5..9</code></td>
+<td style="text-align: center;">5</td>
+<td>Zone Workloads ($W_1, \dots, W_5$)</td>
+<td>$[0.0, 1.0]$</td>
+</tr>
+<tr>
+<td><code>10..14</code></td>
+<td style="text-align: center;">5</td>
+<td>Previous Cooling Actions ($C_{\text{prev}, 1}, \dots, C_{\text{prev}, 5}$)</td>
+<td>$[0.0, 1.0]$</td>
+</tr>
+<tr>
+<td><code>15..19</code></td>
+<td style="text-align: center;">5</td>
+<td>Available Cooling Capacities ($\text{Cap}_1, \dots, \text{Cap}_5$)</td>
+<td>$[0.0, 1.0]$ (drops to 0.6 during failure)</td>
+</tr>
+<tr>
+<td><code>20</code></td>
+<td style="text-align: center;">1</td>
+<td>Ambient Temperature ($T_{\text{amb}}$)</td>
+<td>Celsius (°C), nominal 30.0–40.0°C</td>
+</tr>
+<tr>
+<td><code>21</code></td>
+<td style="text-align: center;">1</td>
+<td>Normalized Timestep ($t / 288$)</td>
+<td>$[0.0, 1.0]$</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-action-space">6.2 Action Space</h3>
+<p>The action space differs fundamentally between the baselines and Joint RL:</p>
+<h4 id="cooling-only-action-space">Cooling-Only Action Space</h4>
+<ul>
+<li>Space: Continuous $\text{Box}(-1, 1, (5,), \text{float32})$.</li>
+<li>Mapping: $C_i = \text{clip}((a_i + 1) / 2, 0.0, 1.0)$.</li>
+<li>Workload movement is disabled (fixed to no-op).</li>
+</ul>
+<h4 id="joint-rl-action-space">Joint RL Action Space</h4>
+<ul>
+<li>Space: Continuous $\text{Box}(-1, 1, (10,), \text{float32})$.</li>
+<li><strong>Dimensions <code>0..4</code> (Cooling):</strong> Mapped to cooling setpoints:
+  $$C_{\text{proposed}, i} = \min\left( \text{clip}\left(\frac{a_i + 1}{2}, 0.0, 1.0\right), \text{Cap}_i \right)$$</li>
+<li><strong>Dimensions <code>5..9</code> (Workload Placement Preference Logits):</strong> Mapped to continuous target allocation fractions via a Softmax transformation:
+  $$\pi_i = \frac{\exp(z_i / \tau)}{\sum_{j=1}^5 \exp(z_j / \tau)}$$
+  Where $z_i = a_{5+i} \in [-1, 1]$ and temperature $\tau = 1.0$.</li>
+</ul>
+<h4 id="workload-migration-decoding-rate-limiting">Workload Migration Decoding &amp; Rate Limiting</h4>
+<p>From target allocation fractions $\pi_i$, target workload is:
+$$W^*<em>i = \pi_i \sum</em>{k=1}^5 W_k$$</p>
+<p>Zone deltas represent workload surplus or deficit:
+$$\Delta_i = W^*_i - W_i$$</p>
+<ul>
+<li>Candidate source zone: $s = \arg\min \Delta$ (most surplus/wants to shed).</li>
+<li>Candidate destination zone: $d = \arg\max \Delta$ (most deficit/wants to receive).</li>
+<li>Desired transfer volume: $v = \min(-\Delta_s, \Delta_d)$.</li>
+</ul>
+<p><strong>Deadband &amp; Rate Limiting:</strong>
+1. If $s = d$ or $v &lt; 0.01$ (1% deadband), migration is a strict <strong>no-op</strong> ($v = 0$). This prevents policy chatter and thrashing.
+2. The transfer is rate-limited: $v \le 0.05$ (maximum 5% workload moved per 5-minute timestep).
+3. Physical boundary clamping: $v \le W_s$ and $v \le 1.0 - W_d$.
+4. <strong>Workload Conservation:</strong>
+   $$W_s(t+1) = W_s(t) - v, \quad W_d(t+1) = W_d(t) + v$$
+   $$\sum_{i=1}^5 W_i(t+1) = \sum_{i=1}^5 W_i(t)$$
+   Total compute demand is 100% conserved; no jobs are ever dropped or shed.</p>
+<p><strong>Location in Code:</strong> <code>JointActionDecoder</code> in <a href="file:///e:/rl/engine/control/joint_rl.py"><code>engine/control/joint_rl.py</code></a>.</p>
+<hr />
+<h2 id="7-reward-function">7. Reward Function</h2>
+<p>The reward function represents a multi-objective optimization problem that balances safety, energy minimization, equipment longevity, and migration friction.</p>
+<p>$$R(t) = -(p_{\text{op}} + p_{\text{emerg}} + p_{\text{energy}} + p_{\text{drift}} + p_{\text{jitter}} + p_{\text{mig}} + p_{\text{cap}} + p_{\text{shed}} + p_{\text{disc}})$$</p>
+<h3 id="breakdown-of-reward-terms">Breakdown of Reward Terms</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Mathematical Formula</th>
+<th style="text-align: center;">Weight / Hyperparameter</th>
+<th>Physical Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>$p_{\text{op}}$</strong></td>
+<td>$w_{\text{op}} \sum_{i=1}^N \max(T_i - 35.0, 0)$</td>
+<td style="text-align: center;">$w_{\text{op}} = 20.0$</td>
+<td>Linear penalty for exceeding the 35°C ASHRAE Class A2 SLA limit.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{emerg}}$</strong></td>
+<td>$w_{\text{emerg}} \sum_{i=1}^N \left( e^{\min\left(\frac{\max(T_i - 40, 0)}{2}, 5\right)} - 1 \right) + 100 \cdot \mathbb{I}_{T_i &gt; 45}$</td>
+<td style="text-align: center;">$w_{\text{emerg}} = 80.0$</td>
+<td>Exponential penalty starting at 40°C, with a massive +100 step penalty for violating the hard 45°C limit.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{energy}}$</strong></td>
+<td>$w_{\text{energy}} \sum_{i=1}^N C_i$</td>
+<td style="text-align: center;">$w_{\text{energy}} = 12.0$</td>
+<td>Linear penalty proportional to total cooling deployed to force power reduction.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{drift}}$</strong></td>
+<td>$w_{\text{drift}} \sum_{i=1}^N \left( \max(18.0 - T_i, 0) + \max(T_i - 34.0, 0) \right)$</td>
+<td style="text-align: center;">$w_{\text{drift}} = 0.5$</td>
+<td>Soft penalty penalizing drift outside the [18.0°C, 34.0°C] operating band.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{jitter}}$</strong></td>
+<td>$w_{\text{jitter}} \sum_{i=1}^N (C_i - C_{\text{prev}, i})^2$</td>
+<td style="text-align: center;">$w_{\text{jitter}} = 0.5$</td>
+<td>Quadratic penalty on abrupt actuator changes. <strong>Emergency override:</strong> zeroed if any $T_i &gt; 40.0^\circ\text{C}$.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{mig}}$</strong></td>
+<td>$w_{\text{mig}} \cdot \text{amount}$</td>
+<td style="text-align: center;">$w_{\text{mig}} = 0.1$</td>
+<td>Small friction cost on workload transfer to penalize unnecessary migration.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{cap}}$</strong></td>
+<td>$w_{\text{cap}} \sum_{i=1}^N \max(W_i - 0.95, 0)^2$</td>
+<td style="text-align: center;">$w_{\text{cap}} = 10.0$</td>
+<td>Penalizes driving any zone near 100% server capacity saturation.</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{shed}}$</strong></td>
+<td>$0.0$</td>
+<td style="text-align: center;">$0.0$</td>
+<td>Workload is mathematically conserved (0% shed).</td>
+</tr>
+<tr>
+<td><strong>$p_{\text{disc}}$</strong></td>
+<td>$w_{\text{disc}} \left( \sum (C_{\text{prop}} - C_{\text{applied}})^2 + \mathbb{I}_{\text{rejected}} \right)$</td>
+<td style="text-align: center;">$w_{\text{disc}} = 2.0$</td>
+<td>Penalizes discrepancy between proposed action and safety-shield action (fosters shield independence).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="transparent-record-of-candidate-configurations-tested">Transparent Record of Candidate Configurations Tested</h3>
+<p>During Phase 4 reward tuning, multiple candidate configurations were evaluated:</p>
+<table>
+<thead>
+<tr>
+<th>Candidate</th>
+<th style="text-align: center;">$w_{\text{energy}}$</th>
+<th style="text-align: center;">Drift Upper Bound</th>
+<th>Outcome &amp; Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Candidate A</strong></td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">27.0°C</td>
+<td><strong>Rejected.</strong> The tight 27°C drift band caused the policy to aggressively overcool. PUE was 1.4820, failing to beat Rule-Based control.</td>
+</tr>
+<tr>
+<td><strong>Candidate B</strong></td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">30.0°C</td>
+<td><strong>Rejected.</strong> Improved efficiency (PUE 1.4650), but still overcooled during stable operating periods.</td>
+</tr>
+<tr>
+<td><strong>Candidate C (Final)</strong></td>
+<td style="text-align: center;">12.0</td>
+<td style="text-align: center;">34.0°C</td>
+<td><strong>Selected.</strong> Allowed temperatures to float safely between 22°C and 34°C without triggering the 35°C SLA threshold. Enabled significant cooling power savings while maintaining 100% SLA compliance.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-ppo-training-setup">8. PPO Training Setup</h2>
+<h3 id="why-proximal-policy-optimization-ppo">Why Proximal Policy Optimization (PPO)?</h3>
+<p>PPO was chosen because:
+1. It is the established industry standard for continuous control with continuous action spaces.
+2. The clipped surrogate objective prevents catastrophic policy collapse during training.
+3. It integrates seamlessly with deterministic safety shields and domain randomization.</p>
+<h3 id="training-hyperparameters">Training Hyperparameters</h3>
+<table>
+<thead>
+<tr>
+<th>Hyperparameter</th>
+<th style="text-align: center;">Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Algorithm</td>
+<td style="text-align: center;">PPO (<code>stable-baselines3</code>)</td>
+<td>On-policy actor-critic</td>
+</tr>
+<tr>
+<td>Policy Network Architecture</td>
+<td style="text-align: center;">MlpPolicy</td>
+<td>Shared feature extractor, 2 hidden layers $\times$ 64 units, Tanh activations</td>
+</tr>
+<tr>
+<td>Learning Rate</td>
+<td style="text-align: center;">$3 \times 10^{-4}$</td>
+<td>Constant learning rate with Adam optimizer</td>
+</tr>
+<tr>
+<td>Discount Factor ($\gamma$)</td>
+<td style="text-align: center;">0.99</td>
+<td>Temporal discount factor</td>
+</tr>
+<tr>
+<td>GAE Parameter ($\lambda$)</td>
+<td style="text-align: center;">0.95</td>
+<td>Generalized Advantage Estimation smoothing</td>
+</tr>
+<tr>
+<td>Clip Range ($\epsilon$)</td>
+<td style="text-align: center;">0.20</td>
+<td>Surrogate objective clipping threshold</td>
+</tr>
+<tr>
+<td>Value Function Coefficient</td>
+<td style="text-align: center;">0.50</td>
+<td>Critic loss weighting</td>
+</tr>
+<tr>
+<td>Entropy Coefficient</td>
+<td style="text-align: center;">0.00</td>
+<td>Pure exploitation in continuous control</td>
+</tr>
+<tr>
+<td>Rollout Buffer Size</td>
+<td style="text-align: center;">2048 steps</td>
+<td>Experience collected before each policy update</td>
+</tr>
+<tr>
+<td>Minibatch Size</td>
+<td style="text-align: center;">64</td>
+<td>Batch size for gradient steps</td>
+</tr>
+<tr>
+<td>Optimization Epochs</td>
+<td style="text-align: center;">10</td>
+<td>SGD passes over rollout buffer</td>
+</tr>
+<tr>
+<td>Total Training Timesteps</td>
+<td style="text-align: center;">150,000 steps</td>
+<td>~73 full episodes; took 32 seconds on local CPU</td>
+</tr>
+</tbody>
+</table>
+<h3 id="seed-isolation-and-evaluation-protocol">Seed Isolation and Evaluation Protocol</h3>
+<p>To prevent data contamination and guard against cherry-picked random seeds, seeds were strictly isolated across disjoint groups:</p>
+<table>
+<thead>
+<tr>
+<th>Seed Group</th>
+<th>Seed Values</th>
+<th>Purpose &amp; Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TRAIN_SEEDS</code></td>
+<td><code>[101, 102, 103, 104]</code></td>
+<td>Environment domain randomization during PPO policy rollouts.</td>
+</tr>
+<tr>
+<td><code>VALIDATION_SEEDS</code></td>
+<td><code>[201, 202, 203, 204]</code></td>
+<td>Periodic checkpoint evaluation and candidate selection.</td>
+</tr>
+<tr>
+<td><code>AUDIT_SEEDS</code></td>
+<td><code>[301, 302, 303, 304, 305]</code></td>
+<td>Historical Simulator-v1 test seeds (preserved for audit traceability).</td>
+</tr>
+<tr>
+<td><code>HELD_OUT_TEST_SEEDS</code></td>
+<td><code>[401, 402, 403, 404, 405]</code></td>
+<td><strong>Locked in <code>benchmarks/final_test_config_v2.json</code>. Strictly untouched during all training and tuning.</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-deterministic-safety-shield">9. Deterministic Safety Shield</h2>
+<p>The RL agent is <strong>never permitted to directly command the physical simulator</strong>. Every proposed action passes through a pure, deterministic safety shield before execution.</p>
+<div class="codehilite"><pre><span></span><code><span class="w">       </span><span class="o">+--------------------+</span>
+<span class="w">       </span><span class="o">|</span><span class="w">  </span><span class="n">RL</span><span class="w"> </span><span class="n">Policy</span><span class="w"> </span><span class="n">Action</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="p">[</span><span class="n">cooling_proposed</span><span class="p">,</span><span class="w"> </span><span class="n">from_zone</span><span class="p">,</span><span class="w"> </span><span class="n">to_zone</span><span class="p">,</span><span class="w"> </span><span class="n">move_fraction</span><span class="p">]</span>
+<span class="w">       </span><span class="o">+--------------------+</span>
+<span class="w">                 </span><span class="o">|</span>
+<span class="w">                 </span><span class="n">v</span>
+<span class="o">+------------------------------------+</span>
+<span class="o">|</span><span class="w">        </span><span class="n">SAFETY</span><span class="w"> </span><span class="n">SHIELD</span><span class="w"> </span><span class="n">LAYER</span><span class="w">         </span><span class="o">|</span>
+<span class="o">|</span><span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="n">Capacity</span><span class="w"> </span><span class="n">Clamping</span><span class="w">              </span><span class="o">|</span><span class="w">  </span><span class="n">Clamp</span><span class="w"> </span><span class="n">cooling</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">cooling_capacity</span><span class="p">]</span>
+<span class="o">|</span><span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="n">Overheat</span><span class="w"> </span><span class="n">Prevention</span><span class="w"> </span><span class="n">Check</span><span class="w">      </span><span class="o">|</span><span class="w">  </span><span class="n">Predict</span><span class="w"> </span><span class="n">T_next</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">zero</span><span class="w"> </span><span class="n">noise</span><span class="o">.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">45</span><span class="err">°</span><span class="n">C</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">force</span><span class="w"> </span><span class="n">cooling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span>
+<span class="o">|</span><span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="n">Overcool</span><span class="w"> </span><span class="n">Floor</span><span class="w"> </span><span class="n">Check</span><span class="w">           </span><span class="o">|</span><span class="w">  </span><span class="n">Floor</span><span class="w"> </span><span class="n">cooling</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">T_next</span><span class="w"> </span><span class="n">comfortably</span><span class="w"> </span><span class="n">below</span><span class="w"> </span><span class="mi">18</span><span class="err">°</span><span class="n">C</span>
+<span class="o">|</span><span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="n">Workload</span><span class="w"> </span><span class="n">Move</span><span class="w"> </span><span class="n">Rejection</span><span class="w"> </span><span class="n">Check</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="n">Predict</span><span class="w"> </span><span class="n">destination</span><span class="w"> </span><span class="n">T_next</span><span class="o">.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">45</span><span class="err">°</span><span class="n">C</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">reject</span><span class="w"> </span><span class="n">move</span><span class="w"> </span><span class="p">(</span><span class="n">no</span><span class="o">-</span><span class="n">op</span><span class="p">)</span>
+<span class="o">+------------------------------------+</span>
+<span class="w">                 </span><span class="o">|</span>
+<span class="w">                 </span><span class="n">v</span>
+<span class="w">       </span><span class="o">+--------------------+</span>
+<span class="w">       </span><span class="o">|</span><span class="w">  </span><span class="n">Corrected</span><span class="w"> </span><span class="n">Action</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="p">[</span><span class="n">cooling_applied</span><span class="p">,</span><span class="w"> </span><span class="n">from_zone</span><span class="p">,</span><span class="w"> </span><span class="n">to_zone</span><span class="p">,</span><span class="w"> </span><span class="n">move_fraction</span><span class="p">]</span>
+<span class="w">       </span><span class="o">+--------------------+</span>
+<span class="w">                 </span><span class="o">|</span>
+<span class="w">                 </span><span class="n">v</span>
+<span class="w">       </span><span class="o">+--------------------+</span>
+<span class="w">       </span><span class="o">|</span><span class="w">   </span><span class="n">Simulator</span><span class="w"> </span><span class="n">Step</span><span class="w">   </span><span class="o">|</span>
+<span class="w">       </span><span class="o">+--------------------+</span>
+</code></pre></div>
+
+<h3 id="the-four-safety-constraints">The Four Safety Constraints</h3>
+<ol>
+<li>
+<p><strong>Capacity Clamping:</strong><br />
+   Cooling setpoints are strictly bounded by instantaneous mechanical availability:
+   $$C_i \in [0.0, \text{Cap}_i(t)]$$
+   If a cooling unit has failed ($\text{Cap}_i = 0.60$), an action proposing $0.90$ cooling is clamped to $0.60$.</p>
+</li>
+<li>
+<p><strong>Overheat Prevention (Safety-Critical):</strong><br />
+   Using a zero-noise forward model, the shield computes a deterministic one-step temperature prediction:
+   $$\hat{T}<em>i(t+1) = T_i(t) + a_i W_i(t) - b_i C_i(t) + g_i (T</em>{\text{amb}} - T_i(t))$$
+   If $\hat{T}<em>i(t+1) &gt; T</em>{\text{emerg, max}}$ ($45.0^\circ\text{C}$), the shield overrides the agent's cooling and forces maximum available cooling:
+   $$C_i = \text{Cap}_i(t)$$
+   Label: <code>capped_high</code>.</p>
+</li>
+<li>
+<p><strong>Overcool Prevention (Efficiency):</strong><br />
+   If even at reduced cooling a zone's predicted temperature remains comfortably below $18.0^\circ\text{C}$, the shield floors cooling down to the minimum necessary to stabilize near 18°C. <strong>Safety always overrides efficiency:</strong> constraint 2 takes absolute precedence. Label: <code>floored_low</code>.</p>
+</li>
+<li>
+<p><strong>Workload Move Rejection:</strong><br />
+   If a proposed workload migration would push the destination zone's predicted temperature above $45.0^\circ\text{C}$, the move is converted to a strict <strong>no-op</strong> ($v = 0$). Label: <code>move_rejected</code>.</p>
+</li>
+</ol>
+<h3 id="shield-override-rate-as-a-measure-of-autonomy">Shield Override Rate as a Measure of Autonomy</h3>
+<p>The shield logs every intervention. The override rate is defined as:
+$$\text{Override Rate} = \frac{\text{Steps with Corrections Applied}}{\text{Total Steps}}$$</p>
+<p>A low override rate proves that the reinforcement learning policy has <strong>internalized the physical safety constraints</strong> and is operating safely on its own, rather than constantly crashing against the shield.</p>
+<hr />
+<h2 id="10-controllers">10. Controllers</h2>
+<h3 id="a-rule-based-baseline-controller">A. Rule-Based Baseline Controller</h3>
+<ul>
+<li><strong>Design:</strong> Implements standard static operational logic used by facility engineering teams.</li>
+<li><strong>Cooling Policy:</strong> Proportional linear ramp:</li>
+<li>If $T_i \le 27.0^\circ\text{C}$: $C_i = 0.05$ (base idle airflow).</li>
+<li>If $T_i \ge 45.0^\circ\text{C}$: $C_i = 1.0$ (full cooling).</li>
+<li>If $27.0^\circ\text{C} &lt; T_i &lt; 45.0^\circ\text{C}$: Linear ramp between $0.05$ and $1.0$.</li>
+<li>Clamped to $[0, \text{Cap}_i]$.</li>
+<li><strong>Workload Policy:</strong> No-op. The rule-based controller has no mechanism to communicate with software schedulers or move compute jobs.</li>
+</ul>
+<h3 id="b-cooling-only-rl-controller">B. Cooling-Only RL Controller</h3>
+<ul>
+<li><strong>Design:</strong> PPO policy trained on the reduced 5-dimensional action space.</li>
+<li><strong>Cooling Policy:</strong> Neural network policy predicting continuous cooling setpoints $[0, 1]^5$.</li>
+<li><strong>Workload Policy:</strong> Workload-move dimensions are hard-disabled at the Gymnasium wrapper level (<code>CoolingOnlyWrapper</code>). No workload movement is ever attempted.</li>
+</ul>
+<h3 id="c-joint-rl-controller">C. Joint RL Controller</h3>
+<ul>
+<li><strong>Design:</strong> PPO policy trained on the full 10-dimensional continuous action space.</li>
+<li><strong>Cooling Policy:</strong> Dynamically scales cooling per zone based on instantaneous temperature, load, and local COP.</li>
+<li><strong>Workload Policy:</strong> Continuously outputs workload allocation logits, proactively shifting compute load away from inefficient or cooling-impaired zones toward high-COP zones before thermal boundaries are breached.</li>
+</ul>
+<hr />
+<h2 id="11-experimental-design">11. Experimental Design</h2>
+<p>All three controllers were evaluated on identical benchmark scenarios using the exact same locked test seeds.</p>
+<h3 id="111-benchmark-scenarios">11.1 Benchmark Scenarios</h3>
+<ol>
+<li><strong><code>canonical_cooling_failure</code> (Primary Evaluation Scenario):</strong><br />
+   Workload initialized at nominal baseline (<code>[0.3, 0.4, 0.35, 0.5, 0.25]</code>). At step 50 (after 4.16 hours of operation), Zone-D cooling capacity drops abruptly from 1.0 to 0.60 (40% capacity reduction).</li>
+<li><strong><code>unseen_scenario_1</code>:</strong><br />
+   Zone-C cooling unit drops to 60% capacity at step 100 (8.33 hours).</li>
+<li><strong><code>unseen_scenario_2</code>:</strong><br />
+   Zone-B cooling unit drops to 60% capacity at step 75 (6.25 hours).</li>
+</ol>
+<h3 id="112-evaluation-integrity-rules">11.2 Evaluation Integrity Rules</h3>
+<ol>
+<li><strong>Identical Initial Conditions:</strong> For a given seed, all three controllers start with identical initial temperatures, workloads, and ambient conditions.</li>
+<li><strong>Identical Noise Sequences:</strong> Gaussian noise draws are seeded deterministically per run.</li>
+<li><strong>Strict Seed Isolation:</strong> Test seeds <code>[401, 402, 403, 404, 405]</code> were never seen by PPO during training or hyperparameter selection.</li>
+<li><strong>Authoritative Energy Accounting:</strong> Timestep is strictly 300 seconds. Energy is accumulated in kWh using $P \times (300 / 3600)$.</li>
+</ol>
+<hr />
+<h2 id="12-benchmark-results">12. Benchmark Results</h2>
+<p>The data below is extracted directly from the certified benchmark output file <a href="file:///e:/rl/outputs/phase4_final_benchmark_results_v2.json"><code>outputs/phase4_final_benchmark_results_v2.json</code></a>.</p>
+<h3 id="121-canonical-scenario-summary-table-canonical_cooling_failure">12.1 Canonical Scenario Summary Table (<code>canonical_cooling_failure</code>)</h3>
+<p>Averaged across the 5 held-out test seeds (<code>[401, 402, 403, 404, 405]</code>), with 288 steps per episode (1,440 total evaluation steps per controller):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: center;">Rule-Based Baseline</th>
+<th style="text-align: center;">Cooling-Only RL</th>
+<th style="text-align: center;">Joint RL (Ours)</th>
+<th style="text-align: center;">Advantage of Joint RL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PUE</strong> (Lower is better)</td>
+<td style="text-align: center;">$1.2234 \pm 0.0002$</td>
+<td style="text-align: center;">$1.2424 \pm 0.0002$</td>
+<td style="text-align: center;"><strong>1.1931 ± 0.0003</strong></td>
+<td style="text-align: center;"><strong>-2.48% vs. Rule-Based</strong> (-3.97% vs. Cooling-Only)</td>
+</tr>
+<tr>
+<td><strong>Total Facility Energy</strong></td>
+<td style="text-align: center;">$528.52 \pm 0.07$ kWh</td>
+<td style="text-align: center;">$536.70 \pm 0.07$ kWh</td>
+<td style="text-align: center;"><strong>515.43 ± 0.12 kWh</strong></td>
+<td style="text-align: center;"><strong>-13.09 kWh / day saved</strong></td>
+</tr>
+<tr>
+<td><strong>Cooling Energy</strong></td>
+<td style="text-align: center;">$74.92 \pm 0.07$ kWh</td>
+<td style="text-align: center;">$83.10 \pm 0.07$ kWh</td>
+<td style="text-align: center;"><strong>61.83 ± 0.12 kWh</strong></td>
+<td style="text-align: center;"><strong>-17.47% cooling electricity</strong></td>
+</tr>
+<tr>
+<td><strong>IT Energy</strong></td>
+<td style="text-align: center;">432.00 kWh</td>
+<td style="text-align: center;">432.00 kWh</td>
+<td style="text-align: center;">432.00 kWh</td>
+<td style="text-align: center;">100% Workload Served</td>
+</tr>
+<tr>
+<td><strong>Max Peak Temperature</strong></td>
+<td style="text-align: center;">$55.33 \pm 0.24^\circ\text{C}$</td>
+<td style="text-align: center;">$54.98 \pm 0.30^\circ\text{C}$</td>
+<td style="text-align: center;"><strong>30.09 ± 0.09°C</strong></td>
+<td style="text-align: center;"><strong>-25.24°C cooler (Safe)</strong></td>
+</tr>
+<tr>
+<td><strong>SLA Uptime %</strong> ($T \le 35^\circ\text{C}$)</td>
+<td style="text-align: center;">$1.88 \pm 0.17\%$</td>
+<td style="text-align: center;">$14.44 \pm 1.13\%$</td>
+<td style="text-align: center;"><strong>100.00% ± 0.00%</strong></td>
+<td style="text-align: center;"><strong>Perfect SLA Compliance</strong></td>
+</tr>
+<tr>
+<td><strong>Operational Violations</strong></td>
+<td style="text-align: center;">$282.6 \pm 0.5$ steps</td>
+<td style="text-align: center;">$246.4 \pm 3.3$ steps</td>
+<td style="text-align: center;"><strong>0.0 ± 0.0 steps</strong></td>
+<td style="text-align: center;">Zero SLA breaches</td>
+</tr>
+<tr>
+<td><strong>Emergency Violations</strong> ($T &gt; 45^\circ\text{C}$)</td>
+<td style="text-align: center;">$215.0 \pm 1.1$ steps</td>
+<td style="text-align: center;">$174.4 \pm 2.2$ steps</td>
+<td style="text-align: center;"><strong>0.0 ± 0.0 steps</strong></td>
+<td style="text-align: center;">Zero hardware-trip risks</td>
+</tr>
+<tr>
+<td><strong>Workload Migrations</strong></td>
+<td style="text-align: center;">$0.0 \pm 0.0$</td>
+<td style="text-align: center;">$0.0 \pm 0.0$</td>
+<td style="text-align: center;"><strong>72.8 ± 5.0 moves</strong></td>
+<td style="text-align: center;">Active load redistribution</td>
+</tr>
+<tr>
+<td><strong>Shield Override Rate</strong></td>
+<td style="text-align: center;">$75.83\%$</td>
+<td style="text-align: center;">$98.96\%$</td>
+<td style="text-align: center;"><strong>0.00%</strong></td>
+<td style="text-align: center;">Autonomous safety</td>
+</tr>
+<tr>
+<td><strong>Inference Latency</strong></td>
+<td style="text-align: center;">$0.005$ ms</td>
+<td style="text-align: center;">$0.611$ ms</td>
+<td style="text-align: center;">$0.666$ ms</td>
+<td style="text-align: center;">Real-time capable (&lt; 1 ms)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="122-per-seed-breakdown-canonical-scenario">12.2 Per-Seed Breakdown (Canonical Scenario)</h3>
+<h4 id="rule-based-baseline">Rule-Based Baseline</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Seed</th>
+<th style="text-align: center;">PUE</th>
+<th style="text-align: center;">Total Energy (kWh)</th>
+<th style="text-align: center;">Cooling Energy (kWh)</th>
+<th style="text-align: center;">Max Temp (°C)</th>
+<th style="text-align: center;">SLA Uptime %</th>
+<th style="text-align: center;">Op Violations</th>
+<th style="text-align: center;">Emerg Violations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">401</td>
+<td style="text-align: center;">1.2233</td>
+<td style="text-align: center;">528.45</td>
+<td style="text-align: center;">74.85</td>
+<td style="text-align: center;">55.57</td>
+<td style="text-align: center;">1.74%</td>
+<td style="text-align: center;">283</td>
+<td style="text-align: center;">215</td>
+</tr>
+<tr>
+<td style="text-align: center;">402</td>
+<td style="text-align: center;">1.2234</td>
+<td style="text-align: center;">528.53</td>
+<td style="text-align: center;">74.93</td>
+<td style="text-align: center;">55.00</td>
+<td style="text-align: center;">1.74%</td>
+<td style="text-align: center;">283</td>
+<td style="text-align: center;">216</td>
+</tr>
+<tr>
+<td style="text-align: center;">403</td>
+<td style="text-align: center;">1.2237</td>
+<td style="text-align: center;">528.62</td>
+<td style="text-align: center;">75.02</td>
+<td style="text-align: center;">55.32</td>
+<td style="text-align: center;">2.08%</td>
+<td style="text-align: center;">282</td>
+<td style="text-align: center;">214</td>
+</tr>
+<tr>
+<td style="text-align: center;">404</td>
+<td style="text-align: center;">1.2233</td>
+<td style="text-align: center;">528.47</td>
+<td style="text-align: center;">74.87</td>
+<td style="text-align: center;">55.62</td>
+<td style="text-align: center;">2.08%</td>
+<td style="text-align: center;">282</td>
+<td style="text-align: center;">217</td>
+</tr>
+<tr>
+<td style="text-align: center;">405</td>
+<td style="text-align: center;">1.2234</td>
+<td style="text-align: center;">528.51</td>
+<td style="text-align: center;">74.91</td>
+<td style="text-align: center;">55.15</td>
+<td style="text-align: center;">1.74%</td>
+<td style="text-align: center;">283</td>
+<td style="text-align: center;">213</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>Mean ± Std</strong></td>
+<td style="text-align: center;"><strong>1.2234 ± 0.0002</strong></td>
+<td style="text-align: center;"><strong>528.52 ± 0.07</strong></td>
+<td style="text-align: center;"><strong>74.92 ± 0.07</strong></td>
+<td style="text-align: center;"><strong>55.33 ± 0.24</strong></td>
+<td style="text-align: center;"><strong>1.88% ± 0.17%</strong></td>
+<td style="text-align: center;"><strong>282.6 ± 0.5</strong></td>
+<td style="text-align: center;"><strong>215.0 ± 1.1</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="cooling-only-rl">Cooling-Only RL</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Seed</th>
+<th style="text-align: center;">PUE</th>
+<th style="text-align: center;">Total Energy (kWh)</th>
+<th style="text-align: center;">Cooling Energy (kWh)</th>
+<th style="text-align: center;">Max Temp (°C)</th>
+<th style="text-align: center;">SLA Uptime %</th>
+<th style="text-align: center;">Op Violations</th>
+<th style="text-align: center;">Emerg Violations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">401</td>
+<td style="text-align: center;">1.2421</td>
+<td style="text-align: center;">536.60</td>
+<td style="text-align: center;">83.00</td>
+<td style="text-align: center;">55.20</td>
+<td style="text-align: center;">13.89%</td>
+<td style="text-align: center;">248</td>
+<td style="text-align: center;">176</td>
+</tr>
+<tr>
+<td style="text-align: center;">402</td>
+<td style="text-align: center;">1.2424</td>
+<td style="text-align: center;">536.70</td>
+<td style="text-align: center;">83.10</td>
+<td style="text-align: center;">54.59</td>
+<td style="text-align: center;">14.58%</td>
+<td style="text-align: center;">246</td>
+<td style="text-align: center;">171</td>
+</tr>
+<tr>
+<td style="text-align: center;">403</td>
+<td style="text-align: center;">1.2426</td>
+<td style="text-align: center;">536.80</td>
+<td style="text-align: center;">83.20</td>
+<td style="text-align: center;">54.93</td>
+<td style="text-align: center;">12.85%</td>
+<td style="text-align: center;">251</td>
+<td style="text-align: center;">176</td>
+</tr>
+<tr>
+<td style="text-align: center;">404</td>
+<td style="text-align: center;">1.2423</td>
+<td style="text-align: center;">536.68</td>
+<td style="text-align: center;">83.08</td>
+<td style="text-align: center;">55.42</td>
+<td style="text-align: center;">14.58%</td>
+<td style="text-align: center;">246</td>
+<td style="text-align: center;">174</td>
+</tr>
+<tr>
+<td style="text-align: center;">405</td>
+<td style="text-align: center;">1.2423</td>
+<td style="text-align: center;">536.70</td>
+<td style="text-align: center;">83.10</td>
+<td style="text-align: center;">54.76</td>
+<td style="text-align: center;">16.32%</td>
+<td style="text-align: center;">241</td>
+<td style="text-align: center;">175</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>Mean ± Std</strong></td>
+<td style="text-align: center;"><strong>1.2424 ± 0.0002</strong></td>
+<td style="text-align: center;"><strong>536.70 ± 0.07</strong></td>
+<td style="text-align: center;"><strong>83.10 ± 0.07</strong></td>
+<td style="text-align: center;"><strong>54.98 ± 0.30</strong></td>
+<td style="text-align: center;"><strong>14.44% ± 1.13%</strong></td>
+<td style="text-align: center;"><strong>246.4 ± 3.3</strong></td>
+<td style="text-align: center;"><strong>174.4 ± 2.2</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="joint-rl-ours">Joint RL (Ours)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Seed</th>
+<th style="text-align: center;">PUE</th>
+<th style="text-align: center;">Total Energy (kWh)</th>
+<th style="text-align: center;">Cooling Energy (kWh)</th>
+<th style="text-align: center;">Max Temp (°C)</th>
+<th style="text-align: center;">SLA Uptime %</th>
+<th style="text-align: center;">Op Violations</th>
+<th style="text-align: center;">Emerg Violations</th>
+<th style="text-align: center;">Migrations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">401</td>
+<td style="text-align: center;">1.1926</td>
+<td style="text-align: center;">515.22</td>
+<td style="text-align: center;">61.62</td>
+<td style="text-align: center;">30.13</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">72</td>
+</tr>
+<tr>
+<td style="text-align: center;">402</td>
+<td style="text-align: center;">1.1935</td>
+<td style="text-align: center;">515.58</td>
+<td style="text-align: center;">61.98</td>
+<td style="text-align: center;">30.23</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">69</td>
+</tr>
+<tr>
+<td style="text-align: center;">403</td>
+<td style="text-align: center;">1.1933</td>
+<td style="text-align: center;">515.51</td>
+<td style="text-align: center;">61.91</td>
+<td style="text-align: center;">29.96</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">79</td>
+</tr>
+<tr>
+<td style="text-align: center;">404</td>
+<td style="text-align: center;">1.1930</td>
+<td style="text-align: center;">515.39</td>
+<td style="text-align: center;">61.79</td>
+<td style="text-align: center;">30.04</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">67</td>
+</tr>
+<tr>
+<td style="text-align: center;">405</td>
+<td style="text-align: center;">1.1931</td>
+<td style="text-align: center;">515.44</td>
+<td style="text-align: center;">61.84</td>
+<td style="text-align: center;">30.10</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">77</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>Mean ± Std</strong></td>
+<td style="text-align: center;"><strong>1.1931 ± 0.0003</strong></td>
+<td style="text-align: center;"><strong>515.43 ± 0.12</strong></td>
+<td style="text-align: center;"><strong>61.83 ± 0.12</strong></td>
+<td style="text-align: center;"><strong>30.09 ± 0.09</strong></td>
+<td style="text-align: center;"><strong>100.00% ± 0.00%</strong></td>
+<td style="text-align: center;"><strong>0.0 ± 0.0</strong></td>
+<td style="text-align: center;"><strong>0.0 ± 0.0</strong></td>
+<td style="text-align: center;"><strong>72.8 ± 5.0</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="123-generalization-to-unseen-scenarios">12.3 Generalization to Unseen Scenarios</h3>
+<p>To prove the policy was not overfitted to Zone-D failures, all models were evaluated on two unseen failure locations without retraining:</p>
+<h4 id="unseen-scenario-1-zone-c-failure-to-60-capacity-at-step-100">Unseen Scenario 1 (Zone-C failure to 60% capacity at step 100)</h4>
+<ul>
+<li><strong>Rule-Based:</strong> PUE = 1.2326, Max Temp = 39.35°C, SLA = 1.88%</li>
+<li><strong>Cooling-Only RL:</strong> PUE = 1.2596, Max Temp = 35.88°C, SLA = 23.06%</li>
+<li><strong>Joint RL:</strong> <strong>PUE = 1.1931</strong>, <strong>Max Temp = 30.16°C</strong>, <strong>SLA = 100.00%</strong> (77.6 migrations)</li>
+</ul>
+<h4 id="unseen-scenario-2-zone-b-failure-to-60-capacity-at-step-75">Unseen Scenario 2 (Zone-B failure to 60% capacity at step 75)</h4>
+<ul>
+<li><strong>Rule-Based:</strong> PUE = 1.2326, Max Temp = 39.35°C, SLA = 1.88%</li>
+<li><strong>Cooling-Only RL:</strong> PUE = 1.2595, Max Temp = 36.18°C, SLA = 13.89%</li>
+<li><strong>Joint RL:</strong> <strong>PUE = 1.1938</strong>, <strong>Max Temp = 30.09°C</strong>, <strong>SLA = 100.00%</strong> (85.4 migrations)</li>
+</ul>
+<hr />
+<h2 id="13-results-interpretation">13. Results Interpretation</h2>
+<h3 id="why-joint-rl-wins-the-physical-mechanism">Why Joint RL Wins: The Physical Mechanism</h3>
+<p>Joint RL outperforms both baselines because it controls the heat source (computation) and the heat extraction (cooling) as a unified system.</p>
+<ol>
+<li><strong>Directional Workload Migration:</strong><br />
+   When Zone-D's cooling unit fails to 60% capacity at step 50, Zone-D can no longer dissipate $a_D W_D$ heat even at maximum cooling ($C_D = 0.60$).</li>
+<li>Joint RL detects the reduced capacity $\text{Cap}_D = 0.60$ in its state observation.</li>
+<li>It progressively shifts compute load away from Zone-D ($a_D = 5.8, \text{COP}_D = 2.0$) into Zone-B ($a_B = 4.5, \text{COP}_B = 3.8$).</li>
+<li>This relieves the heat burden in Zone-D, allowing its reduced 60% cooling capacity to easily maintain temperatures below 30°C.</li>
+<li>
+<p>Zone-B absorbs the workload easily because its cooling effectiveness is high ($b_B = 8.0$) and its COP is the highest in the facility ($\text{COP} = 3.8$).</p>
+</li>
+<li>
+<p><strong>Electrical Power Reduction:</strong><br />
+   Workload migration does not "destroy" energy. It redistributes computational power to where it is cheapest to cool. Removing 1 kW of thermal heat in Zone-D requires $1.0 / 2.0 = 0.50$ kW of electrical cooling power. Removing that same 1 kW of thermal heat in Zone-B requires only $1.0 / 3.8 = 0.263$ kW of electricity. By shifting workload, Joint RL reduced total daily cooling electricity from 74.92 kWh to 61.83 kWh (<strong>a 17.47% reduction</strong>).</p>
+</li>
+</ol>
+<h3 id="why-the-baselines-fail">Why the Baselines Fail</h3>
+<ul>
+<li>
+<p><strong>The Rule-Based Baseline:</strong><br />
+  The rule-based controller has no mechanism to communicate with the compute scheduler. When Zone-D's cooling capacity drops to 60%, the controller commands maximum cooling ($C_D = 0.60$). But because $W_D$ remains high, heat generation exceeds heat removal:
+  $$a_D W_D - b_D \text{Cap}_D = (5.8 \times 0.5) - (4.0 \times 0.6) = 2.9 - 2.4 = +0.5^\circ\text{C / step}$$
+  The temperature ramps relentlessly upward at 0.5°C per step, blowing through the 35°C SLA limit and the 45°C emergency limit, eventually stabilizing at an intolerable <strong>55.33°C</strong>.</p>
+</li>
+<li>
+<p><strong>The Cooling-Only RL Baseline:</strong><br />
+  Like the rule-based controller, Cooling-Only RL cannot move workload. While it optimizes cooling allocation slightly better than a linear rule during normal conditions, it is physically powerless during a mechanical failure. Its temperature reached <strong>54.98°C</strong> and required the safety shield on 98.96% of steps.</p>
+</li>
+</ul>
+<hr />
+<h2 id="14-detailed-limitations">14. Detailed Limitations</h2>
+<p>We emphasize the following limitations:</p>
+<ol>
+<li><strong>Simplified Lumped Thermal Model:</strong><br />
+   The simulator uses zero-dimensional lumped-capacitance ODEs per zone. It does not model Navier-Stokes airflow dynamics, cold/hot aisle pressure differentials, boundary-layer convection, or turbulent eddies that exist in real server halls.</li>
+<li><strong>Coarse Spatial Granularity:</strong><br />
+   The facility is modeled as 5 zones. A real hyperscale data center contains hundreds of racks and thousands of physical temperature sensors with complex 3D thermal gradients.</li>
+<li><strong>Synthetic Assumptions:</strong><br />
+   Parameters ($a_i, b_i, g_i, \text{COP}_i$) are synthetic engineering estimates. While qualitatively representative of heterogeneous server racks and aging cooling units, they are not calibrated to a specific physical building.</li>
+<li><strong>Simplified Workload Migration Costs:</strong><br />
+   Workload migration is penalized as a linear scalar in the reward function. In production, live VM/container migration incurs network bandwidth usage, page-dirtying memory overhead, and temporary tail latency spikes.</li>
+<li><strong>No Equipment Thermal Inertia / Chiller Lag:</strong><br />
+   Cooling setpoint changes take effect within the 5-minute timestep. Real commercial chillers have mechanical ramp times of 5–15 minutes to chill water loops.</li>
+<li><strong>Simulation-to-Real (Sim-to-Real) Gap:</strong><br />
+   A policy trained exclusively on this simulator cannot be deployed directly onto a live data center without significant domain randomization, system identification, and physical safety constraints.</li>
+</ol>
+<hr />
+<h2 id="15-real-world-telemetry-calibration-attempt-rejection">15. Real-World Telemetry Calibration Attempt &amp; Rejection</h2>
+<p>During Phase 3, we investigated whether the simulator could be directly calibrated against real-world telemetry using a public dataset: <code>data-centre-hot-corridor-temperature-prediction</code> (Kaggle).</p>
+<h3 id="dataset-audit-findings">Dataset Audit Findings</h3>
+<p>The dataset contains 27,013 observations of data center hot corridor temperatures, IT server power, and air conditioning power from an operational facility. A rigorous scientific audit revealed severe structural barriers:</p>
+<ol>
+<li><strong>Standardization Obfuscation:</strong> All telemetry features were z-score normalized ($\mu = 0, \sigma = 1$). The original physical scaling factors (means and variances) were withheld. Attempting to fit physical heat-gain coefficients ($a$ in °C/kW) on dimensionless numbers is unphysical.</li>
+<li><strong>Temporal Mismatch:</strong> Telemetry was sampled at 15-minute intervals ($\Delta t = 900$ s), whereas data center thermal control operates on 1–5 minute loops.</li>
+<li><strong>Closed-Loop Observational Confounding:</strong> The data came from an operational data center under active feedback control. As IT power increased, the air conditioning system automatically drew <em>more</em> electrical power to compensate. In observational data without active perturbations, cooling power was positively correlated with temperature. Fitting an ordinary linear model resulted in a <strong>negative cooling effectiveness</strong> ($b &lt; 0$), nonsensically implying that turning on air conditioning makes the room hotter.</li>
+<li><strong>Single-Corridor vs. Multi-Zone Spatial Architecture:</strong> The dataset contained measurements from a single corridor, providing no multi-zone spatial coupling or workload migration telemetry.</li>
+</ol>
+<h3 id="decision-scientific-principle">Decision &amp; Scientific Principle</h3>
+<p>Rather than force an unphysical regression to fit the dataset, <strong>we explicitly rejected calibration against this dataset</strong>, documented the limitations in <code>data/README.md</code>, added <code>data/raw/</code> to <code>.gitignore</code>, and labeled our simulation as a <strong>test-validated synthetic ODE simulator</strong>.</p>
+<h3 id="practical-path-to-real-world-deployment">Practical Path to Real-World Deployment</h3>
+<p>For any future physical deployment, the recommended roadmap is:
+1. <strong>Digital Twin Development:</strong> Build an ODE/CFD model calibrated with unstandardized open-loop step-response test data from the physical site.
+2. <strong>Shadow Mode:</strong> Run the Joint RL agent in production reading live telemetry and logging proposed cooling and migration actions without executing them. Compare proposed actions against human operators.
+3. <strong>Advisory Mode:</strong> Display Joint RL recommendations on the operator console for human confirmation.
+4. <strong>Constrained Closed-Loop Control:</strong> Allow Joint RL to control cooling setpoints within narrow bands (e.g. ±2°C) while software schedulers handle low-priority batch workload migrations.
+5. <strong>Full Autonomous Closed-Loop Operation:</strong> Expand control envelope with the deterministic safety shield continuously active as a hard hardware barrier.</p>
+<hr />
+<h2 id="16-future-work">16. Future Work</h2>
+<ol>
+<li><strong>CFD Co-Simulation:</strong> Couple the RL environment to an OpenFOAM computational fluid dynamics solver to capture turbulent recirculations and thermal stratification.</li>
+<li><strong>Scale to Hundreds of Racks:</strong> Expand state space to multi-cluster topologies using Graph Neural Networks (GNNs) or Attention Mechanisms that scale invariantly with rack count.</li>
+<li><strong>Network-Aware Workload Scheduler:</strong> Integrate network topology and migration bandwidth congestion costs into the migration decoder.</li>
+<li><strong>Chiller Plant Dynamics:</strong> Add refrigerant loop thermodynamics, thermal energy storage (chilled water tanks), and wet-bulb ambient cooling towers.</li>
+<li><strong>Renewable Energy &amp; Carbon Tracking:</strong> Integrate time-varying electricity grid carbon intensity and on-site solar/battery generation into the reward function.</li>
+</ol>
+<hr />
+<h2 id="17-reproducibility-guide">17. Reproducibility Guide</h2>
+<p>All code, configurations, checkpoints, and benchmark scripts are fully self-contained.</p>
+<h3 id="171-environment-setup">17.1 Environment Setup</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Clone and navigate to repository root</span>
+<span class="nb">cd</span><span class="w"> </span>e:<span class="se">\r</span>l
+
+<span class="c1"># Prerequisites: Python 3.10+ (tested on Python 3.11.9, Windows 11)</span>
+<span class="c1"># Install core dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span>numpy&gt;<span class="o">=</span><span class="m">1</span>.24<span class="w"> </span>gymnasium&gt;<span class="o">=</span><span class="m">0</span>.29<span class="w"> </span>stable-baselines3&gt;<span class="o">=</span><span class="m">2</span>.1<span class="w"> </span>torch&gt;<span class="o">=</span><span class="m">2</span>.0<span class="w"> </span>fastapi&gt;<span class="o">=</span><span class="m">0</span>.100<span class="w"> </span>uvicorn&gt;<span class="o">=</span><span class="m">0</span>.23<span class="w"> </span>pytest&gt;<span class="o">=</span><span class="m">7</span>.4
+</code></pre></div>
+
+<h3 id="172-executing-the-complete-test-suite">17.2 Executing the Complete Test Suite</h3>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>-v
+</code></pre></div>
+
+<p><strong>Expected Output:</strong> <code>135 passed in ~5.9s</code>.</p>
+<h3 id="173-running-the-one-shot-final-benchmark">17.3 Running the One-Shot Final Benchmark</h3>
+<p>To evaluate all three controllers across the 5 held-out test seeds on Simulator-v2:</p>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>benchmarks/run_final_benchmark.py
+</code></pre></div>
+
+<p>This loads pretrained models from:
+- <code>models/checkpoints/joint_rl_v2.zip</code>
+- <code>models/checkpoints/cooling_only_rl.zip</code>
+and writes certified metrics to <code>outputs/phase4_final_benchmark_results_v2.json</code>.</p>
+<h3 id="174-retraining-joint-rl-from-scratch-optional">17.4 Retraining Joint RL from Scratch (Optional)</h3>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from engine.control.joint_rl import train, JointRewardConfig; rc = JointRewardConfig(w_energy=12.0, drift_temp_high=34.0); train(total_timesteps=150000, reward_config=rc)&quot;</span>
+</code></pre></div>
+
+<h3 id="175-launching-the-backend-api">17.5 Launching the Backend API</h3>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>uvicorn<span class="w"> </span>apps.api.main:app<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span><span class="w"> </span>--reload
+</code></pre></div>
+
+<p>Interactive Swagger docs: <code>http://localhost:8000/docs</code></p>
+<hr />
+<h2 id="18-testing-and-verification">18. Testing and Verification</h2>
+<p>The test suite comprises <strong>135 automated unit, integration, and contract tests</strong> with 100% pass rate:</p>
+<table>
+<thead>
+<tr>
+<th>Test Module</th>
+<th style="text-align: center;">Tests</th>
+<th>Focus Area</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tests/contract/test_api_contracts.py</code></td>
+<td style="text-align: center;">10</td>
+<td>Pydantic v2 schema compliance, input validation, 422 error enforcement</td>
+</tr>
+<tr>
+<td><code>tests/integration/test_api_runs.py</code></td>
+<td style="text-align: center;">6</td>
+<td>Live run lifecycle, WebSocket streaming, repeat-run switching, migration semantics</td>
+</tr>
+<tr>
+<td><code>tests/integration/test_rule_based_episode.py</code></td>
+<td style="text-align: center;">8</td>
+<td>Rule-based controller full 288-step episode execution</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_calibration_gate.py</code></td>
+<td style="text-align: center;">8</td>
+<td>Documentation integrity, Kaggle dataset rejection validation</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_cooling_only_rl.py</code></td>
+<td style="text-align: center;">20</td>
+<td>Cooling-only wrapper, action space reduction, scenario randomization, policy degeneracy</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_energy_accounting.py</code></td>
+<td style="text-align: center;">6</td>
+<td>300s timestep integration, kWh conversion, PUE formulas</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_env.py</code></td>
+<td style="text-align: center;">18</td>
+<td>Reset/step determinism, observation shapes, workload conservation</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_joint_rl.py</code></td>
+<td style="text-align: center;">10</td>
+<td>Softmax decoder, deadband enforcement, migration volume bounds, reward decomposition</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_safety_shield.py</code></td>
+<td style="text-align: center;">13</td>
+<td>Capacity clamping, overheat override, overcool floor, move rejection, bypass flag</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_simulator_v2_physics.py</code></td>
+<td style="text-align: center;">13</td>
+<td>Placement effect, invariance breaking, COP electrical power conversion</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_thermal_model.py</code></td>
+<td style="text-align: center;">14</td>
+<td>Differential updates, numerical stability, power accounting</td>
+</tr>
+<tr>
+<td><code>tests/unit/test_thresholds_sla.py</code></td>
+<td style="text-align: center;">9</td>
+<td>ASHRAE threshold separation, degree-minutes tracking, seed separation</td>
+</tr>
+<tr>
+<td><strong>Total Test Count</strong></td>
+<td style="text-align: center;"><strong>135</strong></td>
+<td><strong>135 Passed, 0 Failed</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-these-tests-prove-vs-what-they-do-not-prove">What These Tests Prove vs. What They Do Not Prove</h3>
+<ul>
+<li><strong>What they prove:</strong> The mathematics, action decoding, workload conservation, safety overrides, power integration, API contracts, and seed isolation are programmatic, reproducible, and internally consistent.</li>
+<li><strong>What they do not prove:</strong> Passing synthetic ODE unit tests does not prove the model is an accurate representation of a physical building or that real airflow will behave identically.</li>
+</ul>
+<hr />
+<h2 id="19-final-conclusion">19. Final Conclusion</h2>
+<h3 id="what-did-we-build">What Did We Build?</h3>
+<p>We built an end-to-end digital twin and autonomous control system for data center thermal and workload management. The system pairs an ODE-based 5-zone thermodynamic simulation with a reinforcement learning policy (PPO) and a deterministic safety shield, served via a production-grade FastAPI backend and real-time WebSocket telemetry stream.</p>
+<h3 id="what-did-we-test">What Did We Test?</h3>
+<p>We tested three controllers—a standard industry Rule-Based Controller, a Cooling-Only RL Controller, and a Joint RL Controller—across three distinct cooling failure scenarios on 5 held-out, previously unseen random seeds.</p>
+<h3 id="what-did-we-learn">What Did We Learn?</h3>
+<ol>
+<li><strong>Invariance in Homogeneous Systems:</strong> In a data center model with identical linear zones and conserved workload, moving workload between zones mathematically cannot reduce total cooling demand. Heterogeneity in heat gain, airflow, and equipment COP is the physical prerequisite that makes workload placement valuable.</li>
+<li><strong>Cooling Alone Cannot Survive Hardware Failures:</strong> When a cooling unit suffers physical capacity loss, cooling-only controllers catastrophically fail (temperatures exceeded 54°C). The only way to prevent overheating is to reduce heat generation at the source by migrating computation.</li>
+<li><strong>Safety Shields Enable Bold RL:</strong> A deterministic safety shield allows an RL agent to train and operate safely without risking hardware violations, while a shield discrepancy penalty encourages the agent to internalize safe boundaries.</li>
+</ol>
+<h3 id="what-did-joint-rl-achieve">What Did Joint RL Achieve?</h3>
+<ul>
+<li><strong>Lower PUE:</strong> Achieved PUE <strong>1.1931</strong> compared to 1.2234 (Rule-Based) and 1.2424 (Cooling-Only), saving 17.47% of daily cooling electricity.</li>
+<li><strong>Flawless Thermal Safety:</strong> Maintained <strong>100.00% SLA compliance</strong> with zero operational or emergency violations, keeping peak temperatures at <strong>30.09°C</strong> during a severe 40% cooling failure that caused the rule-based baseline to overheat to <strong>55.33°C</strong>.</li>
+<li><strong>Complete Autonomy:</strong> Maintained a <strong>0.00% safety-shield override rate</strong>, demonstrating that the agent learned to respect physical safety bounds independently.</li>
+</ul>
+<h3 id="what-are-we-not-claiming">What Are We NOT Claiming?</h3>
+<ul>
+<li>We do <strong>not</strong> claim to have built a production-ready system that can be plugged into a physical facility tomorrow.</li>
+<li>We do <strong>not</strong> claim our synthetic ODE model replaces 3D Computational Fluid Dynamics.</li>
+<li>We do <strong>not</strong> claim to have discovered a universal thermodynamic breakthrough; Joint RL simply exploits known physical heterogeneity by moving compute to where cooling is cheapest and most effective.</li>
+</ul>
+<hr />
+<p><em>Report compiled and verified against repository commit tree <code>e:\rl</code> on September 5, 2026.</em></p>
+</body>
+</html>

@@ -1,0 +1,51 @@
+export const coolingFailureFixture = {
+  type: 'telemetry.frame',
+  schema_version: '1.0.0',
+  run_id: 'run-fixture-failure-04',
+  sequence: 400,
+  timestamp: new Date().toISOString(),
+  simulation_time_s: 1250,
+  run_state: 'RUNNING',
+  scenario: 'FAILURE',
+  controller: 'JOINT_RL',
+  metrics: {
+    pue: 1.42,
+    it_power_kw: 78.5,
+    cooling_power_kw: 33.0,
+    other_power_kw: 3.1,
+    total_power_kw: 114.6,
+    energy_used_kwh: 580.9,
+    max_temperature_c: 32.8,
+    sla_percent: 99.1,
+    sla_violations: 0,
+    shed_demand_kw: 0.0,
+  },
+  zones: [
+    { id: 'zone-01', temperature_c: 24.2, utilization: 0.72, it_power_kw: 18.5, cooling_effect_kw: 22.0, risk: 'SAFE' },
+    { id: 'zone-02', temperature_c: 26.5, utilization: 0.65, it_power_kw: 16.8, cooling_effect_kw: 18.5, risk: 'WARM' },
+    { id: 'zone-03', temperature_c: 32.8, utilization: 0.38, it_power_kw: 9.8, cooling_effect_kw: 8.2, risk: 'WARNING' },
+    { id: 'zone-04', temperature_c: 31.4, utilization: 0.42, it_power_kw: 11.0, cooling_effect_kw: 9.0, risk: 'WARNING' },
+    { id: 'zone-05', temperature_c: 23.8, utilization: 0.76, it_power_kw: 22.4, cooling_effect_kw: 21.0, risk: 'SAFE' },
+  ],
+  cooling_units: [
+    { id: 'crac-01', command: 1.0, available_capacity: 1.0, status: 'AVAILABLE' },
+    { id: 'crac-02', command: 0.0, available_capacity: 0.0, status: 'FAILED' },
+  ],
+  actions: {
+    proposed_cooling: [1.0, 0.0],
+    applied_cooling: [1.0, 0.0],
+    workload_moves: [
+      { from_zone: 'zone-03', to_zone: 'zone-01', amount: 8.5 },
+      { from_zone: 'zone-04', to_zone: 'zone-05', amount: 6.2 },
+    ],
+  },
+  safety: {
+    override_active: false,
+    reasons: [],
+  },
+  events: [
+    { code: 'CRAC_COMPRESSOR_FAILURE', severity: 'CRITICAL', message: 'CRAC-02 compressor trip detected. Available capacity dropped to 0%.' },
+    { code: 'RL_LOAD_MIGRATION', severity: 'INFO', message: 'Joint RL migrated 14.7 kW IT load from thermal shadow (Zone 3 & 4) to Zone 1 & 5.' },
+    { code: 'CRAC_COMPENSATION', severity: 'INFO', message: 'CRAC-01 elevated to 100% capacity to compensate cross-aisle static pressure.' },
+  ],
+}

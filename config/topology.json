@@ -1,0 +1,60 @@
+{
+  "_comment_simulator_version": "simulator-v2: heterogeneous zones. NOT comparable to simulator-v1 results.",
+  "simulator_version": "v2",
+  "num_zones": 5,
+  "zone_names": ["Zone-A", "Zone-B", "Zone-C", "Zone-D", "Zone-E"],
+
+  "_comment_global_scalars": "Global scalars kept for backward-compatibility with v1 tests. Simulator-v2 uses per-zone arrays below.",
+  "thermal_coefficients": {
+    "a": 5.0,
+    "b": 6.0,
+    "g": 0.02
+  },
+  "noise_std": 0.1,
+
+  "_comment_per_zone": "SYNTHETIC ASSUMPTIONS — frozen before any training. Values chosen to create physically meaningful zone heterogeneity, not to make RL win.",
+  "_zone_layout": {
+    "Zone-A": "Edge zone, moderate heat gain, moderate cooling effectiveness, good COP.",
+    "Zone-B": "Core zone, lower heat gain (dense but efficient servers), high cooling effectiveness (dedicated CRAC unit), best COP. Preferred migration destination.",
+    "Zone-C": "Standard zone, reference/average characteristics.",
+    "Zone-D": "Impaired zone: older server generation (higher heat gain), partially obstructed airflow (lower cooling effectiveness), aging cooling unit (worst COP). Primary migration source.",
+    "Zone-E": "Warm-aisle zone, elevated heat gain due to recirculation, below-average cooling effectiveness and COP."
+  },
+
+  "zone_heat_gain_coefficients": [5.2, 4.5, 5.0, 5.8, 5.5],
+  "_zone_heat_gain_note": "SYNTHETIC ASSUMPTION. a_i: degrees-C rise per unit workload per step. Zone-D is highest (older servers, more heat per compute unit). Zone-B is lowest (efficient hardware).",
+
+  "zone_cooling_effectiveness": [6.0, 8.0, 6.0, 4.0, 5.5],
+  "_zone_cooling_effectiveness_note": "SYNTHETIC ASSUMPTION. b_i: degrees-C cooling removal per unit cooling command per step. Zone-B has dedicated CRAC (high b). Zone-D has partially obstructed airflow (low b). Range: 4.0 to 8.0.",
+
+  "zone_cop": [3.2, 3.8, 3.0, 2.0, 2.6],
+  "_zone_cop_note": "SYNTHETIC ASSUMPTION. COP_i: coefficient of performance — thermal kW removed per electrical kW consumed. Zone-B has newest cooling unit (COP=3.8). Zone-D has aging unit (COP=2.0). Lower COP = more electrical power per unit of cooling.",
+
+  "zone_ambient_coupling": [0.02, 0.02, 0.02, 0.02, 0.02],
+  "_zone_ambient_coupling_note": "SYNTHETIC ASSUMPTION. g_i: per-zone ambient coupling. Kept uniform at v1 default; can be differentiated in future work.",
+
+  "zone_adjacency_matrix": [
+    [0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0]
+  ],
+  "_zone_adjacency_note": "SYNTHETIC ASSUMPTION. adjacency[i][j] = fraction of zone i heat that recirculates into zone j. Set to all-zeros in v2 (no inter-zone recirculation). Non-zero values may be added in future work.",
+
+  "_comment_v2_migration_effect": "Moving 0.2 workload from Zone-D to Zone-B: (1) reduces heat generated (a_D=5.8 -> a_B=4.5, saving 0.2*1.3=0.26 deg/step of heat); (2) more effective cooling in Zone-B (b_B=8.0 vs b_D=4.0, needs less cooling action to maintain same temperature); (3) less electrical power per unit cooling in Zone-B (COP_B=3.8 vs COP_D=2.0). Net effect: measurable reduction in total electrical cooling power.",
+
+  "initial_temperatures": [22.0, 22.0, 22.0, 22.0, 22.0],
+  "initial_workloads": [0.3, 0.4, 0.35, 0.5, 0.25],
+  "default_cooling_capacity": [1.0, 1.0, 1.0, 1.0, 1.0],
+  "ambient_temp": 30.0,
+
+  "it_power_per_zone_kw": 10.0,
+  "_it_power_note": "IT power is determined by server hardware, not cooling unit. Kept uniform. Cooling electrical power is separately modelled via COP.",
+
+  "cooling_power_max_kw_per_zone": [5.0, 5.0, 5.0, 5.0, 5.0],
+  "_cooling_power_max_note": "SYNTHETIC ASSUMPTION. Maximum thermal power removal capacity per zone cooling unit (kW). Electrical power consumed = thermal_removal_kw / COP_i.",
+
+  "overhead_fraction": 0.05,
+  "_legacy_comment": "a=heat-from-workload, b=cooling-removal, g=ambient-coupling. In v2, these are per-zone (zone_heat_gain_coefficients, zone_cooling_effectiveness, zone_ambient_coupling). Global scalars above are v1 backward-compatibility only."
+}

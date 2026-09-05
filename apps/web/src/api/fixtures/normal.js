@@ -1,0 +1,46 @@
+export const normalFixture = {
+  type: 'telemetry.frame',
+  schema_version: '1.0.0',
+  run_id: 'run-fixture-normal-01',
+  sequence: 100,
+  timestamp: new Date().toISOString(),
+  simulation_time_s: 300,
+  run_state: 'RUNNING',
+  scenario: 'NORMAL',
+  controller: 'JOINT_RL',
+  metrics: {
+    pue: 1.18,
+    it_power_kw: 62.4,
+    cooling_power_kw: 11.2,
+    other_power_kw: 2.5,
+    total_power_kw: 76.1,
+    energy_used_kwh: 124.5,
+    max_temperature_c: 23.4,
+    sla_percent: 100.0,
+    sla_violations: 0,
+    shed_demand_kw: 0.0,
+  },
+  zones: [
+    { id: 'zone-01', temperature_c: 21.8, utilization: 0.45, it_power_kw: 12.0, cooling_effect_kw: 13.5, risk: 'SAFE' },
+    { id: 'zone-02', temperature_c: 22.4, utilization: 0.52, it_power_kw: 13.2, cooling_effect_kw: 13.0, risk: 'SAFE' },
+    { id: 'zone-03', temperature_c: 23.4, utilization: 0.58, it_power_kw: 14.5, cooling_effect_kw: 14.0, risk: 'SAFE' },
+    { id: 'zone-04', temperature_c: 22.9, utilization: 0.48, it_power_kw: 11.8, cooling_effect_kw: 12.5, risk: 'SAFE' },
+    { id: 'zone-05', temperature_c: 22.1, utilization: 0.42, it_power_kw: 10.9, cooling_effect_kw: 12.0, risk: 'SAFE' },
+  ],
+  cooling_units: [
+    { id: 'crac-01', command: 0.55, available_capacity: 1.0, status: 'AVAILABLE' },
+    { id: 'crac-02', command: 0.52, available_capacity: 1.0, status: 'AVAILABLE' },
+  ],
+  actions: {
+    proposed_cooling: [0.55, 0.52],
+    applied_cooling: [0.55, 0.52],
+    workload_moves: [],
+  },
+  safety: {
+    override_active: false,
+    reasons: [],
+  },
+  events: [
+    { code: 'STATUS_NORMAL', severity: 'INFO', message: 'Nominal operational envelope maintained across all zones.' },
+  ],
+}

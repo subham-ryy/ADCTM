@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "dataset_name": "Data Centre Warm Channel Temperature prediction",
+    "source": "Kaggle (mbjunior/data-centre-hot-corridor-temperature-prediction)",
+    "license": "Unknown",
+    "sampling_interval_minutes": 15,
+    "sampling_interval_seconds": 900,
+    "target_variable": "TLHC (Standardized Left Hot Corridor Exhaust Air)",
+    "standardization": "z-score (mean=0, std=1, original physical scale factors unavailable)",
+    "split_info": {
+      "total_rows": 27013,
+      "train_rows": 18909,
+      "train_slice": "0:18909",
+      "val_rows": 4051,
+      "val_slice": "18909:22960",
+      "test_rows": 4053,
+      "test_slice": "22960:27013",
+      "steps_per_day": 96,
+      "train_days": 197.0,
+      "val_days": 42.2,
+      "test_days": 42.2
+    }
+  },
+  "fitted_parameters": {
+    "a": 0.002961471707430873,
+    "b": -0.03762314027929468,
+    "g": 0.02055435554658354,
+    "bias": 0.0030376708066841215,
+    "r2_delta_T": 0.11300688268671888
+  },
+  "simulator_baseline_parameters": {
+    "a": 5.0,
+    "b": 6.0,
+    "g": 0.02,
+    "units": "Celsius per 1-minute step with normalized [0, 1] workload and cooling"
+  },
+  "held_out_evaluation": {
+    "one_step_mae": 0.05310677520546789,
+    "one_step_rmse": 0.06804814208039033,
+    "one_step_bias": 0.002412367710726424,
+    "rollout_mae": 0.542532558323917,
+    "rollout_rmse": 0.687565412714262,
+    "rollout_bias": 0.09510353644781286,
+    "observed_range": [
+      0.8311564223260585,
+      1.7874707254069804
+    ],
+    "rollout_pred_range": [
+      -0.16375927348389202,
+      3.589399883132236
+    ]
+  },
+  "validation_decision": {
+    "status": "REJECTED",
+    "physically_plausible": false,
+    "rejection_reasons": [
+      "Cooling coefficient b=-0.03762 is non-positive (cooling increases temperature, indicating closed-loop feedback confounding)",
+      "Telemetry is dimensionless z-score standardized without physical scale factors (mean/std).",
+      "Sampling interval is 15 minutes (900s), whereas simulator operates on 1-minute steps.",
+      "Telemetry represents single-zone hot corridor, containing no 5-zone spatial coupling or workload migration."
+    ],
+    "action_taken": "Retain existing validated simulator physics. Do not overwrite config/topology.json.",
+    "phase3_retraining_required": false
+  }
+}

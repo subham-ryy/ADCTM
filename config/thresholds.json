@@ -1,0 +1,19 @@
+{
+  "target_temperature_c": 22.0,
+  "target_temp_low": 18.0,
+  "target_temp_high": 27.0,
+  "operational_max_temperature_c": 35.0,
+  "emergency_max_temperature_c": 45.0,
+  "warning_temp": 35.0,
+  "critical_temp": 40.0,
+  "max_safe_temp": 45.0,
+  "episode_length": 288,
+  "documentation": {
+    "target_temperature_c": "The project's chosen operating target within ASHRAE's recommended 18-27C range (simulated IT inlet/zone temperature).",
+    "target_temp_low": "Lower bound of ASHRAE recommended thermal envelope (18C) for simulated IT inlet/zone temperature.",
+    "target_temp_high": "Upper bound of ASHRAE recommended thermal envelope (27C) for simulated IT inlet/zone temperature.",
+    "operational_max_temperature_c": "ASHRAE Class A2 allowable maximum (35C) for simulated IT inlet/zone temperature, functioning as the operational SLA boundary.",
+    "emergency_max_temperature_c": "Project-defined simulator emergency threshold (45C) for simulated IT inlet/zone temperature, enforced by the deterministic safety shield (not a universal ASHRAE hardware-trip specification).",
+    "episode_length": "288 steps representing a 24-hour operational cycle at 5-minute intervals."
+  }
+}

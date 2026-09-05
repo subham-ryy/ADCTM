@@ -1,0 +1,32 @@
+{
+  "scenarios": {
+    "normal": {
+      "description": "Stable baseline workload, no perturbations",
+      "workload_profile": "constant",
+      "ambient_delta": 0.0,
+      "failure_injection": null
+    },
+    "peak_load": {
+      "description": "Workload spikes across all zones",
+      "workload_profile": "peak",
+      "ambient_delta": 0.0,
+      "failure_injection": null
+    },
+    "ambient_heat": {
+      "description": "Elevated ambient temperature (+10C)",
+      "workload_profile": "constant",
+      "ambient_delta": 10.0,
+      "failure_injection": null
+    },
+    "cooling_failure": {
+      "description": "One cooling unit drops to 60% capacity mid-episode",
+      "workload_profile": "constant",
+      "ambient_delta": 0.0,
+      "failure_injection": {
+        "zone_index": 2,
+        "trigger_step": 100,
+        "reduced_capacity": 0.6
+      }
+    }
+  }
+}

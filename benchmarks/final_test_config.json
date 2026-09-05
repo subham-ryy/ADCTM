@@ -1,0 +1,32 @@
+{
+  "description": "Locked final evaluation configuration for Phase 4 Joint RL fair benchmark.",
+  "test_seeds": [301, 302, 303, 304, 305],
+  "test_scenarios": [
+    {
+      "name": "cooling_failure_canonical",
+      "scenario_type": "cooling_failure",
+      "failure_zone": 2,
+      "failure_step": 50,
+      "failure_capacity": 0.60,
+      "description": "Canonical failure scenario: Zone 2 drops to 60% cooling capacity at step 50"
+    },
+    {
+      "name": "cooling_failure_unseen_1",
+      "scenario_type": "cooling_failure",
+      "failure_zone": 3,
+      "failure_step": 40,
+      "failure_capacity": 0.50,
+      "description": "Unseen failure scenario 1: Zone 3 drops to 50% cooling capacity at step 40"
+    },
+    {
+      "name": "cooling_failure_unseen_2",
+      "scenario_type": "cooling_failure",
+      "failure_zone": 0,
+      "failure_step": 70,
+      "failure_capacity": 0.55,
+      "description": "Unseen failure scenario 2: Zone 0 drops to 55% cooling capacity at step 70"
+    }
+  ],
+  "migration_overhead_models_kwh_per_unit": [0.0, 0.5, 2.0],
+  "audit_seeds": [42, 123, 456, 789, 1337]
+}
